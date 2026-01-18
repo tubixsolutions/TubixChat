@@ -9,7 +9,7 @@ namespace TubixChat.Desktop.Services;
 public class ApiService : IApiService
 {
     private readonly HttpClient _httpClient;
-    private const string BASE_URL = "http://localhost:5000/api";
+    private const string BASE_URL = "http://45.130.148.91:5000/api";
 
     public ApiService()
     {

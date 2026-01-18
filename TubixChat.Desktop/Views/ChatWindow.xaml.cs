@@ -59,7 +59,7 @@ namespace TubixChat.Desktop.Views
 
         private async System.Threading.Tasks.Task InitializeSignalRAsync(UserDto currentUser)
         {
-            const string signalRUrl = "http://localhost:5000/chatHub";
+            const string signalRUrl = "http://45.130.148.91:5000/chatHub";
             await _signalRService.ConnectAsync(signalRUrl, currentUser.Id);
         }
     }
