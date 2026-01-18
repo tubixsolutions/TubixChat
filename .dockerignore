@@ -1,0 +1,43 @@
+# Build results
+[Dd]ebug/
+[Rr]elease/
+[Bb]in/
+[Oo]bj/
+
+# Visual Studio files
+.vs/
+.vscode/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# NuGet packages
+*.nupkg
+*.snupkg
+packages/
+**/packages/*
+
+# Test results
+[Tt]est[Rr]esult*/
+*.trx
+
+# Docker files
+Dockerfile*
+docker-compose*
+.dockerignore
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+*.md
+LICENSE.txt
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Exclude Desktop project (WPF app, not needed for server)
+TubixChat.Desktop/
