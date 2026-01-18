@@ -3,6 +3,7 @@ using System.Windows;
 using Microsoft.Extensions.DependencyInjection;
 using TubixChat.BizLogicLayer.DTOs;
 using TubixChat.BizLogicLayer.Services;
+using TubixChat.Desktop.Services;
 using TubixChat.Desktop.ViewModels;
 
 namespace TubixChat.Desktop.Views
@@ -11,6 +12,7 @@ namespace TubixChat.Desktop.Views
     {
         private readonly IServiceScope _scope;
         private readonly ChatViewModel _viewModel;
+        private readonly ISignalRService _signalRService;
 
         public ChatWindow(UserDto currentUser)
         {
@@ -22,7 +24,10 @@ namespace TubixChat.Desktop.Views
             var chatService = _scope.ServiceProvider
                 .GetRequiredService<IChatService>();
 
-            _viewModel = new ChatViewModel(chatService, currentUser);
+            // SignalR service ni olish (Singleton, scope'dan emas)
+            _signalRService = App.ServiceProvider.GetRequiredService<ISignalRService>();
+
+            _viewModel = new ChatViewModel(chatService, _signalRService, currentUser);
 
             DataContext = _viewModel;
 
@@ -37,8 +42,25 @@ namespace TubixChat.Desktop.Views
                 }
             };
 
-            // Window yopilganda DbContext dispose bo‘ladi
-            Closed += (_, __) => _scope.Dispose();
+            // SignalR ga ulanish (login bo'lganda)
+            Loaded += async (s, e) =>
+            {
+                await InitializeSignalRAsync(currentUser);
+                await _viewModel.InitializeAsync();
+            };
+
+            // Window yopilganda SignalR disconnect va DbContext dispose bo'ladi
+            Closed += async (_, __) =>
+            {
+                await _signalRService.DisconnectAsync();
+                _scope.Dispose();
+            };
+        }
+
+        private async System.Threading.Tasks.Task InitializeSignalRAsync(UserDto currentUser)
+        {
+            const string signalRUrl = "http://localhost:5000/chatHub";
+            await _signalRService.ConnectAsync(signalRUrl, currentUser.Id);
         }
     }
 }

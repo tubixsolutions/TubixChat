@@ -4,21 +4,24 @@ using System.Linq;
 using System.Threading.Tasks;
 using TubixChat.BizLogicLayer.DTOs;
 using TubixChat.BizLogicLayer.Services;
+using TubixChat.Desktop.Services;
 
 namespace TubixChat.Desktop.ViewModels
 {
     public class ChatViewModel : ViewModelBase
     {
         private readonly IChatService _chatService;
+        private readonly ISignalRService _signalRService;
         private readonly UserDto _currentUser;
 
         private UserDto? _selectedUser;
         private string _messageText = string.Empty;
         private string _searchText = string.Empty;
 
-        public ChatViewModel(IChatService chatService, UserDto currentUser)
+        public ChatViewModel(IChatService chatService, ISignalRService signalRService, UserDto currentUser)
         {
             _chatService = chatService;
+            _signalRService = signalRService;
             _currentUser = currentUser;
 
             Conversations = new ObservableCollection<ConversationDto>();
@@ -28,6 +31,12 @@ namespace TubixChat.Desktop.ViewModels
             SendMessageCommand = new RelayCommand(async _ => await SendMessageAsync(), _ => CanSendMessage());
             SearchUsersCommand = new RelayCommand(async _ => await SearchUsersAsync());
             SelectUserCommand = new RelayCommand(async param => await SelectUserAsync(param as UserDto));
+
+            // SignalR event'larni subscribe qilish
+            _signalRService.OnMessageReceived += OnMessageReceived;
+            _signalRService.OnMessageDelivered += OnMessageDelivered;
+            _signalRService.OnMessageRead += OnMessageRead;
+            _signalRService.OnUserStatusChanged += OnUserStatusChanged;
         }
 
         public async Task InitializeAsync()
@@ -76,7 +85,14 @@ namespace TubixChat.Desktop.ViewModels
                 MessageText = MessageText
             };
 
+            // API orqali xabar yuborish (database ga saqlash uchun)
             var message = await _chatService.SendMessageAsync(dto);
+
+            // SignalR orqali real-time yuborish
+            if (_signalRService.IsConnected)
+            {
+                await _signalRService.SendMessageAsync(SelectedUser.Id, MessageText, message.Id);
+            }
 
             Messages.Add(message);
             MessageText = string.Empty;
@@ -149,6 +165,46 @@ namespace TubixChat.Desktop.ViewModels
             }
 
             await LoadConversationsAsync();
+        }
+
+        // SignalR event handler'lar
+        private async void OnMessageReceived(MessageDto message)
+        {
+            // Agar hozirgi tanlangan user dan kelayotgan bo'lsa, ko'rsatish
+            if (SelectedUser?.Id == message.SenderUserId)
+            {
+                Messages.Add(message);
+                await _chatService.MarkMessagesAsReadAsync(_currentUser.Id, message.SenderUserId);
+            }
+
+            // Conversations ro'yxatini yangilash
+            await LoadConversationsAsync();
+        }
+
+        private void OnMessageDelivered(long messageId)
+        {
+            // Xabar yetkazilganini ko'rsatish
+            var message = Messages.FirstOrDefault(m => m.Id == messageId);
+            if (message != null)
+            {
+                message.IsDelivered = true;
+            }
+        }
+
+        private void OnMessageRead(long messageId)
+        {
+            // Xabar o'qilganini ko'rsatish
+            var message = Messages.FirstOrDefault(m => m.Id == messageId);
+            if (message != null)
+            {
+                message.IsRead = true;
+            }
+        }
+
+        private void OnUserStatusChanged(int userId, bool isOnline)
+        {
+            // User status o'zgarganini yangilash
+            // Bu yerda ConversationDto yoki boshqa joyda status ko'rsatilishi mumkin
         }
     }
 }
